@@ -12,7 +12,7 @@ RUN apt-get update && \
     mvn clean package
 
 # Stage 2: Runtime Stage
-FROM tomcat:7.0.82
+FROM tomcat:8.5.88-jdk8-corretto
 
 # Copy the WAR file built in the previous stage
 COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/
