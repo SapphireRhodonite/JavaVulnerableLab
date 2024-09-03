@@ -3,13 +3,13 @@ FROM openjdk:8 as build
 
 WORKDIR /app
 
-# Copy the source code into the Docker image
-COPY . .
-
 # Install Maven and JDK, then build the project
 RUN apt-get update && \
-    apt-get install -y maven && \
-    mvn clean package
+    apt-get install -y maven
+
+COPY . .
+
+RUN mvn clean package
 
 # Stage 2: Runtime Stage
 FROM tomcat:8.5.88-jdk8-corretto

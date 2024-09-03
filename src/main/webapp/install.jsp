@@ -21,7 +21,7 @@
 </table>  
 </form>
 <br/>  
-Note:<b style="color:red">If a database already exits, it will be dropped </b>
+Note:<b style="color:red">If a database already exits, it will be dropped! </b>
  
 
 
