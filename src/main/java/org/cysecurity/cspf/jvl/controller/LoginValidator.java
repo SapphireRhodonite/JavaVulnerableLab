@@ -12,6 +12,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ import org.cysecurity.cspf.jvl.model.DBConnect;
  *
  * @author breakthesec
  */
+@WebServlet("/LoginValidator")
 public class LoginValidator extends HttpServlet {
 
     /**

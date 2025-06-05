@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.sql.Statement; 
 import java.util.Properties;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -25,6 +26,7 @@ import org.cysecurity.cspf.jvl.model.HashMe;
  *
  * @author breakthesec
  */
+@WebServlet("/Install")
 public class Install extends HttpServlet {
 
        static String dburl;
