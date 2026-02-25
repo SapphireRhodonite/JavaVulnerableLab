@@ -1,11 +1,7 @@
 # Stage 1: Build Stage
-FROM openjdk:8 as build
+FROM maven:3.9-eclipse-temurin-8 AS build
 
 WORKDIR /app
-
-# Install Maven and JDK, then build the project
-RUN apt-get update && \
-    apt-get install -y maven
 
 COPY . .
 
