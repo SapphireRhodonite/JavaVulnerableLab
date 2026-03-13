@@ -46,20 +46,21 @@ public class LoginValidator extends HttpServlet {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
 
-                        // Mitigación de session fixation
                         HttpSession oldSession = request.getSession(false);
                         if (oldSession != null) {
                             oldSession.invalidate();
                         }
 
+                        String dbUserId = safeTrim(rs.getString("id"));
+                        String dbUsername = safeText(rs.getString("username"));
+                        String dbAvatar = safeAvatar(rs.getString("avatar"));
+
                         HttpSession session = request.getSession(true);
                         session.setAttribute("isLoggedIn", "1");
-                        session.setAttribute("userid", rs.getString("id"));
-
-                        // Guardamos datos, pero OJO:
-                        // si se renderizan en JSP deben escaparse al salir.
-                        session.setAttribute("user", rs.getString("username"));
-                        session.setAttribute("avatar", rs.getString("avatar"));
+                        session.setAttribute("userid", dbUserId);
+                        session.setAttribute("user", dbUsername);
+                        session.setAttribute("avatar", dbAvatar);
+                        session.setAttribute("privilege", "user");
 
                         Cookie privilege = new Cookie("privilege", "user");
                         privilege.setHttpOnly(true);
@@ -67,8 +68,6 @@ public class LoginValidator extends HttpServlet {
                         privilege.setPath("/");
                         response.addCookie(privilege);
 
-                        // Mejor NO guardar password en cookies.
-                        // Si necesitas "remember me", usa un token aleatorio del lado servidor.
                         if (request.getParameter("RememberMe") != null) {
                             Cookie usernameCookie = new Cookie("username", user);
                             usernameCookie.setHttpOnly(true);
@@ -94,6 +93,28 @@ public class LoginValidator extends HttpServlet {
 
     private String safeTrim(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String safeText(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim();
+    }
+
+    private String safeAvatar(String avatar) {
+        if (avatar == null || avatar.trim().isEmpty()) {
+            return "default.jpg";
+        }
+
+        String cleaned = avatar.trim();
+
+        // allowlist simple para nombres de archivo de avatar
+        if (cleaned.matches("[A-Za-z0-9._\\-]{1,100}\\.(jpg|jpeg|png|gif)$")) {
+            return cleaned;
+        }
+
+        return "default.jpg";
     }
 
     @Override
