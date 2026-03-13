@@ -1,62 +1,87 @@
- <%@page import="org.cysecurity.cspf.jvl.model.HashMe"%>
-<%@page import="java.sql.Statement"%>
+<%@page import="org.cysecurity.cspf.jvl.model.HashMe"%>
+<%@page import="java.sql.PreparedStatement"%>
 <%@page import="java.sql.ResultSet"%>
 <%@page import="java.sql.SQLException"%>
 <%@page import="org.cysecurity.cspf.jvl.model.DBConnect"%>
 <%@page import="java.sql.Connection"%>
+<%@page import="javax.servlet.http.Cookie"%>
+<%@page import="javax.servlet.http.HttpSession"%>
+<%@page import="org.owasp.encoder.Encode"%>
+
 <%
-if(request.getParameter("Login")!=null)
-{
-     Connection con=new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
-     String user=request.getParameter("username");
-     String pass=HashMe.hashMe(request.getParameter("password")); //Hashed Password 
-     try
-             {
-                    if(con!=null && !con.isClosed())
-                               {
-                                   ResultSet rs=null;
-                                   Statement stmt = con.createStatement();  
-                                   rs=stmt.executeQuery("select * from users where username='"+user+"' and password='"+pass+"' and privilege='admin'");
-                                   if(rs != null && rs.next()){
-                                   session.setAttribute("isLoggedIn", "1");
-                                   session.setAttribute("userid", rs.getString("id"));
-                                   session.setAttribute("user", rs.getString("username"));
-                                   session.setAttribute("avatar", rs.getString("avatar"));
-                                   session.setAttribute("privilege", rs.getString("privilege"));
-                                   
-                                   Cookie privilege=new Cookie("privilege","admin");
-                                    privilege.setPath(request.getContextPath());
-                                   response.addCookie(privilege);
-                                   
-                                   response.sendRedirect("admin.jsp");
-                                   }
-                                   else
-                                   {
-                                	   response.sendRedirect("adminlogin.jsp?err=<span style='color:red'>Username/Password is wrong</span>");
-                                   }
-                                    
-                               }
+String errorMessage = null;
+
+if (request.getParameter("Login") != null) {
+    String user = request.getParameter("username");
+    String rawPassword = request.getParameter("password");
+
+    if (user == null) user = "";
+    if (rawPassword == null) rawPassword = "";
+
+    user = user.trim();
+    rawPassword = rawPassword.trim();
+
+    if (!user.isEmpty() && !rawPassword.isEmpty()) {
+        String pass = HashMe.hashMe(rawPassword);
+        String sql = "SELECT id, username, avatar, privilege FROM users WHERE username = ? AND password = ? AND privilege = ?";
+
+        try (
+            Connection con = new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
+            PreparedStatement ps = con.prepareStatement(sql)
+        ) {
+            ps.setString(1, user);
+            ps.setString(2, pass);
+            ps.setString(3, "admin");
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    HttpSession oldSession = request.getSession(false);
+                    if (oldSession != null) {
+                        oldSession.invalidate();
+                    }
+
+                    HttpSession newSession = request.getSession(true);
+                    newSession.setAttribute("isLoggedIn", "1");
+                    newSession.setAttribute("userid", rs.getString("id"));
+                    newSession.setAttribute("user", rs.getString("username"));
+                    newSession.setAttribute("avatar", rs.getString("avatar"));
+                    newSession.setAttribute("privilege", rs.getString("privilege"));
+
+                    Cookie privilege = new Cookie("privilege", "admin");
+                    privilege.setHttpOnly(true);
+                    privilege.setSecure(request.isSecure());
+                    privilege.setPath(request.getContextPath().isEmpty() ? "/" : request.getContextPath());
+                    response.addCookie(privilege);
+
+                    response.sendRedirect("admin.jsp");
+                    return;
+                } else {
+                    errorMessage = "Username or password is wrong";
                 }
-               catch(SQLException ex)
-                {
-                         response.sendRedirect("adminlogin.jsp?err=<span style='color:red'>Something went wrong</span>");
-                
-                }
-			     catch(Exception e)
-			     {
-			    	 response.sendRedirect("adminlogin.jsp?err="+e);			
-			     }
+            }
+        } catch (SQLException ex) {
+            errorMessage = "Something went wrong";
+        } catch (Exception e) {
+            errorMessage = "Something went wrong";
+        }
+    } else {
+        errorMessage = "Username and password are required";
+    }
 }
 %>
+
 <%@ include file="/header.jsp" %>
- <b>Admin Login Page:</b><br/>
-<form action="adminlogin.jsp" method="post">
+<b>Admin Login Page:</b><br/>
+<form action="adminlogin.jsp" method="post" autocomplete="off">
 <table> 
 <tr><td>UserName: </td><td><input type="text" name="username" /></td></tr>
 <tr><td>Password :</td><td><input type="password" name="password"/></td></tr>
 <tr><td><input type="submit" name="Login" value="Login"/></td></tr>
-<tr><td></td><td class="fail"><% if(request.getParameter("err")!=null){out.print(request.getParameter("err"));} %></td></tr>
+<tr>
+    <td></td>
+    <td class="fail"><%= errorMessage != null ? Encode.forHtml(errorMessage) : "" %></td>
+</tr>
 </table>  
 </form>
 
- <%@ include file="/footer.jsp" %>
+<%@ include file="/footer.jsp" %>
