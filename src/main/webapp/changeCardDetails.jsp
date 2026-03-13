@@ -3,14 +3,14 @@
 <%@page import="java.sql.PreparedStatement"%>
 <%@page import="org.cysecurity.cspf.jvl.model.DBConnect"%>
 <%@page import="java.util.UUID"%>
+<%@page import="org.owasp.encoder.Encode"%>
 
 <%
-if (session.getAttribute("isLoggedIn") != null) {
+if ("1".equals(String.valueOf(session.getAttribute("isLoggedIn")))) {
 
     String id = String.valueOf(session.getAttribute("userid"));
     String action = request.getParameter("action");
 
-    // Generar token CSRF si no existe
     String csrfToken = (String) session.getAttribute("csrfToken");
     if (csrfToken == null) {
         csrfToken = UUID.randomUUID().toString();
@@ -19,7 +19,7 @@ if (session.getAttribute("isLoggedIn") != null) {
 %>
     Change Credit Card Info:<br/><br/>
     <form action="changeCardDetails.jsp" method="POST" autocomplete="off">
-        <input type="hidden" name="csrfToken" value="<%= csrfToken %>" />
+        <input type="hidden" name="csrfToken" value="<%= Encode.forHtmlAttribute(csrfToken) %>" />
         <table>
             <tr>
                 <td>Card Number:</td>
@@ -79,6 +79,7 @@ if (session.getAttribute("isLoggedIn") != null) {
                         ps.setString(4, expirydate);
                         ps.executeUpdate();
 
+                        session.setAttribute("csrfToken", UUID.randomUUID().toString());
                         out.print("<b style='color:green'>* Card details added *</b>");
                     }
                 } else {
@@ -87,7 +88,9 @@ if (session.getAttribute("isLoggedIn") != null) {
             }
         }
 
-        out.print("<br/><br/><a href='" + path + "/myprofile.jsp?id=" + id + "'>Return to Profile Page &gt;&gt;</a>");
+        out.print("<br/><br/><a href='" + path + "/myprofile.jsp?id="
+                + Encode.forUriComponent(id)
+                + "'>Return to Profile Page &gt;&gt;</a>");
 
     } catch (Exception e) {
         out.print("<b style='color:red'>* Something went wrong *</b>");
