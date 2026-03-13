@@ -8,6 +8,23 @@
 <%@page import="javax.servlet.http.HttpSession"%>
 <%@page import="org.owasp.encoder.Encode"%>
 
+<%!
+    private String safeAvatar(String avatar) {
+        if (avatar == null || avatar.trim().isEmpty()) {
+            return "default.jpg";
+        }
+
+        String cleaned = avatar.trim();
+
+        // allowlist simple para nombres de archivo de avatar
+        if (cleaned.matches("[A-Za-z0-9._\\-]{1,100}\\.(jpg|jpeg|png|gif)$")) {
+            return cleaned;
+        }
+
+        return "default.jpg";
+    }
+%>
+
 <%
 String errorMessage = null;
 
@@ -23,7 +40,7 @@ if (request.getParameter("Login") != null) {
 
     if (!user.isEmpty() && !rawPassword.isEmpty()) {
         String pass = HashMe.hashMe(rawPassword);
-        String sql = "SELECT id, username, avatar, privilege FROM users WHERE username = ? AND password = ? AND privilege = ?";
+        String sql = "SELECT id, username, avatar FROM users WHERE username = ? AND password = ? AND privilege = ?";
 
         try (
             Connection con = new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
@@ -40,12 +57,19 @@ if (request.getParameter("Login") != null) {
                         oldSession.invalidate();
                     }
 
+                    String dbUserId = rs.getString("id");
+                    String dbUsername = rs.getString("username");
+                    String dbAvatar = rs.getString("avatar");
+
+                    if (dbUserId == null) dbUserId = "";
+                    if (dbUsername == null) dbUsername = "";
+
                     HttpSession newSession = request.getSession(true);
                     newSession.setAttribute("isLoggedIn", "1");
-                    newSession.setAttribute("userid", rs.getString("id"));
-                    newSession.setAttribute("user", rs.getString("username"));
-                    newSession.setAttribute("avatar", rs.getString("avatar"));
-                    newSession.setAttribute("privilege", rs.getString("privilege"));
+                    newSession.setAttribute("userid", dbUserId);
+                    newSession.setAttribute("user", dbUsername);
+                    newSession.setAttribute("avatar", safeAvatar(dbAvatar));
+                    newSession.setAttribute("privilege", "admin");
 
                     Cookie privilege = new Cookie("privilege", "admin");
                     privilege.setHttpOnly(true);
