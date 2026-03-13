@@ -9,8 +9,8 @@ package org.cysecurity.cspf.jvl.controller;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -43,9 +43,10 @@ public class UsernameCheck extends HttpServlet {
                JSONObject json=new JSONObject();
                 if(con!=null && !con.isClosed())
                 {
-                    ResultSet rs=null;
-                    Statement stmt = con.createStatement();  
-                    rs=stmt.executeQuery("select * from users where username='"+user+"'");
+                    String sql = "select * from users where username=?";
+                    PreparedStatement pstmt = con.prepareStatement(sql);
+                    pstmt.setString(1, user);
+                    ResultSet rs = pstmt.executeQuery();
                     if (rs.next()) 
                     {  
                      json.put("available", "1"); 
