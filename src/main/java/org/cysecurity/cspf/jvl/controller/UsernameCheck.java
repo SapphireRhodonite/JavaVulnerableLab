@@ -9,12 +9,14 @@ package org.cysecurity.cspf.jvl.controller;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import org.cysecurity.cspf.jvl.model.DBConnect;
 import org.json.JSONObject;
 
@@ -24,7 +26,9 @@ import org.json.JSONObject;
  */
 public class UsernameCheck extends HttpServlet {
 
-    /**
+	private static final long serialVersionUID = 1L;
+
+	/**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
      *
@@ -44,8 +48,9 @@ public class UsernameCheck extends HttpServlet {
                 if(con!=null && !con.isClosed())
                 {
                     ResultSet rs=null;
-                    Statement stmt = con.createStatement();  
-                    rs=stmt.executeQuery("select * from users where username='"+user+"'");
+                    PreparedStatement stmt = con.prepareStatement("select * from users where username=?");
+                    stmt.setString(1, user);
+                    rs=stmt.executeQuery();
                     if (rs.next()) 
                     {  
                      json.put("available", "1"); 

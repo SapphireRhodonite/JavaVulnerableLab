@@ -9,14 +9,14 @@ package org.cysecurity.cspf.jvl.controller;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+
 import org.cysecurity.cspf.jvl.model.DBConnect;
 
 /**
@@ -25,7 +25,9 @@ import org.cysecurity.cspf.jvl.model.DBConnect;
  */
 public class Register extends HttpServlet {
 
-    /**
+	private static final long serialVersionUID = 1L;
+
+	/**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
      *
@@ -38,7 +40,6 @@ public class Register extends HttpServlet {
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
        try {
-            PrintWriter out = response.getWriter();
             Connection con=new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
          String user=request.getParameter("username");
           String pass=request.getParameter("password");
