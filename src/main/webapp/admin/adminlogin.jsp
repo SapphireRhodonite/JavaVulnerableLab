@@ -1,5 +1,6 @@
- <%@page import="org.cysecurity.cspf.jvl.model.HashMe"%>
-<%@page import="java.sql.Statement"%>
+ <%@page import="org.apache.commons.text.StringEscapeUtils"%>
+<%@page import="org.cysecurity.cspf.jvl.model.HashMe"%>
+<%@page import="java.sql.PreparedStatement"%>
 <%@page import="java.sql.ResultSet"%>
 <%@page import="java.sql.SQLException"%>
 <%@page import="org.cysecurity.cspf.jvl.model.DBConnect"%>
@@ -15,8 +16,10 @@ if(request.getParameter("Login")!=null)
                     if(con!=null && !con.isClosed())
                                {
                                    ResultSet rs=null;
-                                   Statement stmt = con.createStatement();  
-                                   rs=stmt.executeQuery("select * from users where username='"+user+"' and password='"+pass+"' and privilege='admin'");
+                                   PreparedStatement stmt = con.prepareStatement("select * from users where username=? and password=? and privilege='admin'");
+                                   stmt.setString(1, user);
+                                   stmt.setString(2, pass);
+                                   rs=stmt.executeQuery();
                                    if(rs != null && rs.next()){
                                    session.setAttribute("isLoggedIn", "1");
                                    session.setAttribute("userid", rs.getString("id"));
@@ -55,7 +58,7 @@ if(request.getParameter("Login")!=null)
 <tr><td>UserName: </td><td><input type="text" name="username" /></td></tr>
 <tr><td>Password :</td><td><input type="password" name="password"/></td></tr>
 <tr><td><input type="submit" name="Login" value="Login"/></td></tr>
-<tr><td></td><td class="fail"><% if(request.getParameter("err")!=null){out.print(request.getParameter("err"));} %></td></tr>
+<tr><td></td><td class="fail"><% if(request.getParameter("err")!=null){out.print(StringEscapeUtils.escapeHtml4(request.getParameter("err")));} %></td></tr>
 </table>  
 </form>
 
