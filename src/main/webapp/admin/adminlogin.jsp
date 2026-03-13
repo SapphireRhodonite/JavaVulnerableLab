@@ -59,7 +59,7 @@ if(request.getParameter("Login")!=null)
 <tr><td>UserName: </td><td><input type="text" name="username" /></td></tr>
 <tr><td>Password :</td><td><input type="password" name="password"/></td></tr>
 <tr><td><input type="submit" name="Login" value="Login"/></td></tr>
-<tr><td></td><td class="fail"><% if(request.getParameter("err")!=null){out.print(request.getParameter("err"));} %></td></tr>
+<tr><td></td><td class="fail"><% if(request.getParameter("err")!=null){out.print(StringEscapeUtils.escapeHtml4(request.getParameter("err")));} %></td></tr>
 </table>  
 </form>
 

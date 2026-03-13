@@ -1,12 +1,13 @@
  <%@ include file="/header.jsp" %>
  <%@page import="java.sql.Connection"%>
-<%@page import="java.sql.Statement"%>
+<%@page import="java.sql.PreparedStatement"%>
 <%@page import="java.sql.SQLException"%>
 
 <%@page import="java.sql.ResultSetMetaData"%>
 <%@page import="java.sql.ResultSet"%>
 <%@ page import="java.util.*,java.io.*"%>
 <%@ page import="org.cysecurity.cspf.jvl.model.DBConnect"%>
+<%@page import="org.apache.commons.text.StringEscapeUtils"%>
 
 <%
 if(session.getAttribute("isLoggedIn")!=null)
@@ -16,23 +17,27 @@ if(session.getAttribute("isLoggedIn")!=null)
    String id=request.getParameter("id");
    if(id!=null && !id.equals(""))
    {
-        Statement stmt = con.createStatement();
-             ResultSet rs =null;
-             rs=stmt.executeQuery("select * from users where id="+id);
+        String selectSql = "select * from users where id=?";
+        PreparedStatement pstmt = con.prepareStatement(selectSql);
+        pstmt.setString(1, id);
+        ResultSet rs = pstmt.executeQuery();
               if(rs != null && rs.next())
               {
-                out.print("UserName : "+rs.getString("username")+"<br>"); 
-                out.print("Email : "+rs.getString("email")+"<br>"); 
-                out.print("About : "+rs.getString("about")+"<br>"); 
+                out.print("UserName : "+StringEscapeUtils.escapeHtml4(rs.getString("username"))+"<br>"); 
+                out.print("Email : "+StringEscapeUtils.escapeHtml4(rs.getString("email"))+"<br>"); 
+                out.print("About : "+StringEscapeUtils.escapeHtml4(rs.getString("about"))+"<br>"); 
                  
                 //Getting Card Details:
-                ResultSet rs1=stmt.executeQuery("select * from cards where id="+id);
+                String cardSql = "select * from cards where id=?";
+                PreparedStatement pstmt2 = con.prepareStatement(cardSql);
+                pstmt2.setString(1, id);
+                ResultSet rs1=pstmt2.executeQuery();
                  if(rs1 != null && rs1.next())
                 {
                    out.print("<br/>-------------------<br/>Card Details:<br/>-------------------<br/>");
-                   out.print("Card Number: "+rs1.getString("cardno")+"<br/>");
-                   out.print("CVV: "+rs1.getString("cvv")+"<br/>");
-                   out.print("Expiry Date: "+rs1.getString("expirydate")+"<br/>");
+                   out.print("Card Number: "+StringEscapeUtils.escapeHtml4(rs1.getString("cardno"))+"<br/>");
+                   out.print("CVV: "+StringEscapeUtils.escapeHtml4(rs1.getString("cvv"))+"<br/>");
+                   out.print("Expiry Date: "+StringEscapeUtils.escapeHtml4(rs1.getString("expirydate"))+"<br/>");
                 }
                  else
                  {
