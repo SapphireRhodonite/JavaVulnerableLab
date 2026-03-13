@@ -1,4 +1,6 @@
  <%@page import="org.cysecurity.cspf.jvl.model.HashMe"%>
+<%@page import="org.apache.commons.text.StringEscapeUtils"%>
+<%@page import="java.sql.PreparedStatement"%>
 <%@page import="java.sql.Statement"%>
 <%@page import="java.sql.ResultSet"%>
 <%@page import="java.sql.SQLException"%>
@@ -15,14 +17,16 @@ if(request.getParameter("Login")!=null)
                     if(con!=null && !con.isClosed())
                                {
                                    ResultSet rs=null;
-                                   Statement stmt = con.createStatement();  
-                                   rs=stmt.executeQuery("select * from users where username='"+user+"' and password='"+pass+"' and privilege='admin'");
+                                   PreparedStatement pstmt = con.prepareStatement("select * from users where username=? and password=? and privilege='admin'");
+                                   pstmt.setString(1, user);
+                                   pstmt.setString(2, pass);
+                                   rs=pstmt.executeQuery();
                                    if(rs != null && rs.next()){
                                    session.setAttribute("isLoggedIn", "1");
-                                   session.setAttribute("userid", rs.getString("id"));
-                                   session.setAttribute("user", rs.getString("username"));
-                                   session.setAttribute("avatar", rs.getString("avatar"));
-                                   session.setAttribute("privilege", rs.getString("privilege"));
+                                   session.setAttribute("userid", StringEscapeUtils.escapeHtml4(rs.getString("id")));
+                                   session.setAttribute("user", StringEscapeUtils.escapeHtml4(rs.getString("username")));
+                                   session.setAttribute("avatar", StringEscapeUtils.escapeHtml4(rs.getString("avatar")));
+                                   session.setAttribute("privilege", StringEscapeUtils.escapeHtml4(rs.getString("privilege")));
                                    
                                    Cookie privilege=new Cookie("privilege","admin");
                                     privilege.setPath(request.getContextPath());
