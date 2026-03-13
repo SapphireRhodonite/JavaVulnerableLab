@@ -1,0 +1,15 @@
+org\cysecurity\cspf\jvl\controller\LoginValidator.class
+org\cysecurity\cspf\jvl\controller\xxe.class
+org\cysecurity\cspf\jvl\controller\Register.class
+org\cysecurity\cspf\jvl\model\HashMe.class
+org\cysecurity\cspf\jvl\controller\UsernameCheck.class
+org\cysecurity\cspf\jvl\model\DBConnect.class
+org\cysecurity\cspf\jvl\controller\Open.class
+org\cysecurity\cspf\jvl\controller\Install.class
+org\cysecurity\cspf\jvl\model\orm\Users.class
+org\cysecurity\cspf\jvl\controller\XPathQuery.class
+org\cysecurity\cspf\jvl\controller\AddPage.class
+org\cysecurity\cspf\jvl\controller\ForwardMe.class
+org\cysecurity\cspf\jvl\controller\Logout.class
+org\cysecurity\cspf\jvl\controller\EmailCheck.class
+org\cysecurity\cspf\jvl\controller\SendMessage.class
