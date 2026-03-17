@@ -30,7 +30,6 @@ public class Install extends HttpServlet {
         String jdbcdriver = safeTrim(request.getParameter("jdbcdriver"));
         String dbuser = safeTrim(request.getParameter("dbuser"));
         String dbpass = safeTrim(request.getParameter("dbpass"));
-        String dbname = safeTrim(request.getParameter("dbname"));
         String siteTitle = safeTrim(request.getParameter("siteTitle"));
         String adminuser = safeTrim(request.getParameter("adminuser"));
         String rawAdminPass = safeTrim(request.getParameter("adminpass"));
@@ -48,9 +47,22 @@ public class Install extends HttpServlet {
 
             if (!"1".equals(setup)) {
                 out.print("Invalid setup request");
-            } else if (!isValidDbName(dbname)) {
+                out.println("</body>");
+                out.println("</html>");
+                return;
+            }
+
+            String dbname;
+            try {
+                dbname = requireValidDbName(request.getParameter("dbname"));
+            } catch (IllegalArgumentException ex) {
                 out.print("Invalid database name");
-            } else if (!isValidAdminUser(adminuser)) {
+                out.println("</body>");
+                out.println("</html>");
+                return;
+            }
+
+            if (!isValidAdminUser(adminuser)) {
                 out.print("Invalid admin username");
             } else if (rawAdminPass.isEmpty()) {
                 out.print("Admin password is required");
@@ -84,12 +96,16 @@ public class Install extends HttpServlet {
         try {
             Class.forName(jdbcdriver);
 
+            // Database names are identifiers, not data values.
+            // They cannot be parameterized with PreparedStatement,
+            // so we strictly validate and then quote them safely.
+            String safeDbIdentifier = quoteMySqlIdentifier(dbname);
+
             try (Connection con = DriverManager.getConnection(dburl, dbuser, dbpass);
                  Statement stmt = con.createStatement()) {
 
-                // dbname cannot be parameterized; strict validation is required
-                stmt.executeUpdate("DROP DATABASE IF EXISTS " + dbname);
-                stmt.executeUpdate("CREATE DATABASE " + dbname);
+                stmt.executeUpdate("DROP DATABASE IF EXISTS " + safeDbIdentifier);
+                stmt.executeUpdate("CREATE DATABASE " + safeDbIdentifier);
             }
 
             try (Connection con = DriverManager.getConnection(dburl + dbname, dbuser, dbpass);
@@ -109,9 +125,8 @@ public class Install extends HttpServlet {
 
                 try (PreparedStatement ps = con.prepareStatement(
                         "INSERT INTO users(username, password, email, About, avatar, privilege, secretquestion, secret) " +
-                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
 
-                    // admin seeded user
                     ps.setString(1, adminuser);
                     ps.setString(2, adminpass);
                     ps.setString(3, "admin@localhost");
@@ -122,7 +137,6 @@ public class Install extends HttpServlet {
                     ps.setString(8, "rocky");
                     ps.executeUpdate();
 
-                    // sample users
                     ps.setString(1, "victim");
                     ps.setString(2, "victim");
                     ps.setString(3, "victim@localhost");
@@ -242,8 +256,16 @@ public class Install extends HttpServlet {
         return value == null ? "" : value.trim();
     }
 
-    private boolean isValidDbName(String value) {
-        return value != null && value.matches("[A-Za-z0-9_]{1,50}");
+    private String requireValidDbName(String value) {
+        String normalized = safeTrim(value);
+        if (!normalized.matches("[A-Za-z0-9_]{1,50}")) {
+            throw new IllegalArgumentException("Invalid database name");
+        }
+        return normalized;
+    }
+
+    private String quoteMySqlIdentifier(String identifier) {
+        return "`" + identifier + "`";
     }
 
     private boolean isValidAdminUser(String value) {
