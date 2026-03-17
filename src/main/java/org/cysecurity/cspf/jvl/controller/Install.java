@@ -25,16 +25,6 @@ public class Install extends HttpServlet {
             throws ServletException, IOException {
 
         String configPath = getServletContext().getRealPath("/WEB-INF/config.properties");
-
-        String dburl = safeTrim(request.getParameter("dburl"));
-        String jdbcdriver = safeTrim(request.getParameter("jdbcdriver"));
-        String dbuser = safeTrim(request.getParameter("dbuser"));
-        String dbpass = safeTrim(request.getParameter("dbpass"));
-        String siteTitle = safeTrim(request.getParameter("siteTitle"));
-        String adminuser = safeTrim(request.getParameter("adminuser"));
-        String rawAdminPass = safeTrim(request.getParameter("adminpass"));
-        String setup = safeTrim(request.getParameter("setup"));
-
         response.setContentType("text/html;charset=UTF-8");
 
         try (PrintWriter out = response.getWriter()) {
@@ -45,6 +35,7 @@ public class Install extends HttpServlet {
             out.println("</head>");
             out.println("<body>");
 
+            String setup = safeTrim(request.getParameter("setup"));
             if (!"1".equals(setup)) {
                 out.print("Invalid setup request");
                 out.println("</body>");
@@ -52,30 +43,40 @@ public class Install extends HttpServlet {
                 return;
             }
 
+            // Validate and normalize all user-controlled config values first
+            String dburl;
+            String jdbcdriver;
+            String dbuser;
+            String dbpass;
             String dbname;
+            String siteTitle;
+            String adminuser;
+            String rawAdminPass;
+
             try {
+                dburl = requireValidDbUrl(request.getParameter("dburl"));
+                jdbcdriver = requireValidJdbcDriver(request.getParameter("jdbcdriver"));
+                dbuser = requireValidDbUser(request.getParameter("dbuser"));
+                dbpass = requireValidDbPass(request.getParameter("dbpass"));
                 dbname = requireValidDbName(request.getParameter("dbname"));
+                siteTitle = requireValidSiteTitle(request.getParameter("siteTitle"));
+                adminuser = requireValidAdminUser(request.getParameter("adminuser"));
+                rawAdminPass = requireValidAdminPassword(request.getParameter("adminpass"));
             } catch (IllegalArgumentException ex) {
-                out.print("Invalid database name");
+                out.print(ex.getMessage());
                 out.println("</body>");
                 out.println("</html>");
                 return;
             }
 
-            if (!isValidAdminUser(adminuser)) {
-                out.print("Invalid admin username");
-            } else if (rawAdminPass.isEmpty()) {
-                out.print("Admin password is required");
+            String adminpass = HashMe.hashMe(rawAdminPass);
+
+            storeConfig(configPath, dburl, jdbcdriver, dbuser, dbpass, dbname, siteTitle);
+
+            if (setupDatabase(dburl, jdbcdriver, dbuser, dbpass, dbname, adminuser, adminpass)) {
+                out.print("successfully installed");
             } else {
-                String adminpass = HashMe.hashMe(rawAdminPass);
-
-                storeConfig(configPath, dburl, jdbcdriver, dbuser, dbpass, dbname, siteTitle);
-
-                if (setupDatabase(dburl, jdbcdriver, dbuser, dbpass, dbname, adminuser, adminpass)) {
-                    out.print("successfully installed");
-                } else {
-                    out.print("Something went wrong. Unable to install");
-                }
+                out.print("Something went wrong. Unable to install");
             }
 
             out.println("</body>");
@@ -96,19 +97,16 @@ public class Install extends HttpServlet {
         try {
             Class.forName(jdbcdriver);
 
-            // Database names are identifiers, not data values.
-            // They cannot be parameterized with PreparedStatement,
-            // so we strictly validate and then quote them safely.
-            String safeDbIdentifier = quoteMySqlIdentifier(dbname);
+            String validatedDbName = requireValidDbName(dbname);
+            String safeDbIdentifier = quoteMySqlIdentifier(validatedDbName);
 
             try (Connection con = DriverManager.getConnection(dburl, dbuser, dbpass);
                  Statement stmt = con.createStatement()) {
 
-                stmt.executeUpdate("DROP DATABASE IF EXISTS " + safeDbIdentifier);
-                stmt.executeUpdate("CREATE DATABASE " + safeDbIdentifier);
+                executeDatabaseDDL(stmt, safeDbIdentifier);
             }
 
-            try (Connection con = DriverManager.getConnection(dburl + dbname, dbuser, dbpass);
+            try (Connection con = DriverManager.getConnection(dburl + validatedDbName, dbuser, dbpass);
                  Statement stmt = con.createStatement()) {
 
                 stmt.executeUpdate("CREATE TABLE users(" +
@@ -223,7 +221,15 @@ public class Install extends HttpServlet {
         } catch (ClassNotFoundException ex) {
             log("JDBC Driver Missing", ex);
             return false;
+        } catch (IllegalArgumentException ex) {
+            log("Invalid installation input", ex);
+            return false;
         }
+    }
+
+    private void executeDatabaseDDL(Statement stmt, String safeDbIdentifier) throws SQLException {
+        stmt.executeUpdate("DROP DATABASE IF EXISTS " + safeDbIdentifier);
+        stmt.executeUpdate("CREATE DATABASE " + safeDbIdentifier);
     }
 
     private void storeConfig(String configPath,
@@ -240,12 +246,13 @@ public class Install extends HttpServlet {
             config.load(in);
         }
 
-        config.setProperty("dburl", dburl);
-        config.setProperty("jdbcdriver", jdbcdriver);
-        config.setProperty("dbuser", dbuser);
-        config.setProperty("dbpass", dbpass);
-        config.setProperty("dbname", dbname);
-        config.setProperty("siteTitle", siteTitle);
+        // Only validated/normalized values are persisted
+        config.setProperty("dburl", requireValidDbUrl(dburl));
+        config.setProperty("jdbcdriver", requireValidJdbcDriver(jdbcdriver));
+        config.setProperty("dbuser", requireValidDbUser(dbuser));
+        config.setProperty("dbpass", requireValidDbPass(dbpass));
+        config.setProperty("dbname", requireValidDbName(dbname));
+        config.setProperty("siteTitle", requireValidSiteTitle(siteTitle));
 
         try (OutputStream out = new FileOutputStream(configPath)) {
             config.store(out, null);
@@ -268,8 +275,70 @@ public class Install extends HttpServlet {
         return "`" + identifier + "`";
     }
 
-    private boolean isValidAdminUser(String value) {
-        return value != null && value.matches("[A-Za-z0-9_\\-]{3,30}");
+    private String requireValidDbUrl(String value) {
+        String normalized = safeTrim(value);
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("Invalid database URL");
+        }
+        if (normalized.contains("\r") || normalized.contains("\n")) {
+            throw new IllegalArgumentException("Invalid database URL");
+        }
+        if (!normalized.matches("^jdbc:mysql://[A-Za-z0-9._:-]+/?$")) {
+            throw new IllegalArgumentException("Invalid database URL");
+        }
+        return normalized;
+    }
+
+    private String requireValidJdbcDriver(String value) {
+        String normalized = safeTrim(value);
+        if (!"com.mysql.jdbc.Driver".equals(normalized)
+                && !"com.mysql.cj.jdbc.Driver".equals(normalized)) {
+            throw new IllegalArgumentException("Invalid JDBC driver");
+        }
+        return normalized;
+    }
+
+    private String requireValidDbUser(String value) {
+        String normalized = safeTrim(value);
+        if (!normalized.matches("[A-Za-z0-9_.\\-]{1,50}")) {
+            throw new IllegalArgumentException("Invalid database user");
+        }
+        return normalized;
+    }
+
+    private String requireValidDbPass(String value) {
+        String normalized = value == null ? "" : value;
+        if (normalized.length() > 128 || normalized.contains("\r") || normalized.contains("\n")) {
+            throw new IllegalArgumentException("Invalid database password");
+        }
+        return normalized;
+    }
+
+    private String requireValidSiteTitle(String value) {
+        String normalized = safeTrim(value);
+        if (normalized.isEmpty() || normalized.length() > 100) {
+            throw new IllegalArgumentException("Invalid site title");
+        }
+        if (!normalized.matches("[A-Za-z0-9 _\\-]{1,100}")) {
+            throw new IllegalArgumentException("Invalid site title");
+        }
+        return normalized;
+    }
+
+    private String requireValidAdminUser(String value) {
+        String normalized = safeTrim(value);
+        if (!normalized.matches("[A-Za-z0-9_\\-]{3,30}")) {
+            throw new IllegalArgumentException("Invalid admin username");
+        }
+        return normalized;
+    }
+
+    private String requireValidAdminPassword(String value) {
+        String normalized = safeTrim(value);
+        if (normalized.isEmpty() || normalized.length() > 128) {
+            throw new IllegalArgumentException("Invalid admin password");
+        }
+        return normalized;
     }
 
     @Override
