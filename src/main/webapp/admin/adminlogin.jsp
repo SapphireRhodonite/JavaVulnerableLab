@@ -1,4 +1,5 @@
- <%@page import="org.apache.commons.text.StringEscapeUtils"%>
+ <%@page import="javax.servlet.http.Cookie"%>
+<%@page import="org.apache.commons.text.StringEscapeUtils"%>
 <%@page import="org.cysecurity.cspf.jvl.model.HashMe"%>
 <%@page import="java.sql.PreparedStatement"%>
 <%@page import="java.sql.ResultSet"%>
@@ -10,7 +11,7 @@ if(request.getParameter("Login")!=null)
 {
      Connection con=new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
      String user=request.getParameter("username");
-     String pass=HashMe.hashMe(request.getParameter("password")); //Hashed Password 
+     String pass=HashMe.hashMe(request.getParameter("password")); //Hashed Password
      try
              {
                     if(con!=null && !con.isClosed())
@@ -26,40 +27,48 @@ if(request.getParameter("Login")!=null)
                                    session.setAttribute("user", rs.getString("username"));
                                    session.setAttribute("avatar", rs.getString("avatar"));
                                    session.setAttribute("privilege", rs.getString("privilege"));
-                                   
+
                                    Cookie privilege=new Cookie("privilege","admin");
-                                    privilege.setPath(request.getContextPath());
+                                   privilege.setPath(request.getContextPath());
                                    response.addCookie(privilege);
-                                   
+
                                    response.sendRedirect("admin.jsp");
                                    }
                                    else
                                    {
-                                	   response.sendRedirect("adminlogin.jsp?err=<span style='color:red'>Username/Password is wrong</span>");
+                                       response.sendRedirect("adminlogin.jsp?err=invalid");
                                    }
-                                    
+
                                }
                 }
                catch(SQLException ex)
                 {
-                         response.sendRedirect("adminlogin.jsp?err=<span style='color:red'>Something went wrong</span>");
-                
+                         response.sendRedirect("adminlogin.jsp?err=error");
+
                 }
-			     catch(Exception e)
-			     {
-			    	 response.sendRedirect("adminlogin.jsp?err="+e);			
-			     }
+                 catch(Exception e)
+                 {
+                     response.sendRedirect("adminlogin.jsp?err=error");
+                 }
 }
 %>
 <%@ include file="/header.jsp" %>
  <b>Admin Login Page:</b><br/>
 <form action="adminlogin.jsp" method="post">
-<table> 
+<table>
 <tr><td>UserName: </td><td><input type="text" name="username" /></td></tr>
 <tr><td>Password :</td><td><input type="password" name="password"/></td></tr>
 <tr><td><input type="submit" name="Login" value="Login"/></td></tr>
-<tr><td></td><td class="fail"><% if(request.getParameter("err")!=null){out.print(StringEscapeUtils.escapeHtml4(request.getParameter("err")));} %></td></tr>
-</table>  
+<tr><td></td><td class="fail"><%
+if(request.getParameter("err")!=null){
+    if("invalid".equals(request.getParameter("err"))){
+        out.print("Username/Password is wrong");
+    } else if("error".equals(request.getParameter("err"))){
+        out.print("Something went wrong");
+    }
+}
+%></td></tr>
+</table>
 </form>
 
  <%@ include file="/footer.jsp" %>
