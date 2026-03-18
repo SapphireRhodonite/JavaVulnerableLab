@@ -51,8 +51,8 @@ public class LoginValidator extends HttpServlet {
                             oldSession.invalidate();
                         }
 
-                        String dbUserId = safeTrim(rs.getString("id"));
-                        String dbUsername = safeText(rs.getString("username"));
+                        String dbUserId = requireNumericId(rs.getString("id"));
+                        String dbUsername = safeUsername(rs.getString("username"));
                         String dbAvatar = safeAvatar(rs.getString("avatar"));
 
                         HttpSession session = request.getSession(true);
@@ -86,6 +86,8 @@ public class LoginValidator extends HttpServlet {
 
         } catch (SQLException ex) {
             response.sendRedirect("login.jsp?err=something went wrong");
+        } catch (IllegalArgumentException ex) {
+            response.sendRedirect("login.jsp?err=something went wrong");
         } catch (Exception ex) {
             response.sendRedirect("login.jsp?err=something went wrong");
         }
@@ -95,11 +97,20 @@ public class LoginValidator extends HttpServlet {
         return value == null ? "" : value.trim();
     }
 
-    private String safeText(String value) {
-        if (value == null) {
-            return "";
+    private String requireNumericId(String value) {
+        String normalized = safeTrim(value);
+        if (!normalized.matches("\\d{1,20}")) {
+            throw new IllegalArgumentException("Invalid user id");
         }
-        return value.trim();
+        return normalized;
+    }
+
+    private String safeUsername(String value) {
+        String normalized = safeTrim(value);
+        if (!normalized.matches("[A-Za-z0-9_\\-]{1,30}")) {
+            return "user";
+        }
+        return normalized;
     }
 
     private String safeAvatar(String avatar) {
@@ -109,7 +120,6 @@ public class LoginValidator extends HttpServlet {
 
         String cleaned = avatar.trim();
 
-        // allowlist simple para nombres de archivo de avatar
         if (cleaned.matches("[A-Za-z0-9._\\-]{1,100}\\.(jpg|jpeg|png|gif)$")) {
             return cleaned;
         }
