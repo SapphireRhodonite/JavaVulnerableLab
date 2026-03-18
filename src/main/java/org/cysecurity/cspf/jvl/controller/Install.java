@@ -11,6 +11,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -19,6 +21,14 @@ import javax.servlet.http.HttpServletResponse;
 import org.cysecurity.cspf.jvl.model.HashMe;
 
 public class Install extends HttpServlet {
+
+    private static final Map<String, String> ALLOWED_DATABASES = new HashMap<>();
+
+    static {
+        ALLOWED_DATABASES.put("lab", "jvl_lab");
+        ALLOWED_DATABASES.put("training", "jvl_training");
+        ALLOWED_DATABASES.put("default", "jvl_default");
+    }
 
     @Override
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -43,7 +53,6 @@ public class Install extends HttpServlet {
                 return;
             }
 
-            // Validate and normalize all user-controlled config values first
             String dburl;
             String jdbcdriver;
             String dbuser;
@@ -58,7 +67,7 @@ public class Install extends HttpServlet {
                 jdbcdriver = requireValidJdbcDriver(request.getParameter("jdbcdriver"));
                 dbuser = requireValidDbUser(request.getParameter("dbuser"));
                 dbpass = requireValidDbPass(request.getParameter("dbpass"));
-                dbname = requireValidDbName(request.getParameter("dbname"));
+                dbname = resolveAllowedDbName(request.getParameter("dbname"));
                 siteTitle = requireValidSiteTitle(request.getParameter("siteTitle"));
                 adminuser = requireValidAdminUser(request.getParameter("adminuser"));
                 rawAdminPass = requireValidAdminPassword(request.getParameter("adminpass"));
@@ -97,8 +106,7 @@ public class Install extends HttpServlet {
         try {
             Class.forName(jdbcdriver);
 
-            String validatedDbName = requireValidDbName(dbname);
-            String safeDbIdentifier = quoteMySqlIdentifier(validatedDbName);
+            String safeDbIdentifier = quoteMySqlIdentifier(dbname);
 
             try (Connection con = DriverManager.getConnection(dburl, dbuser, dbpass);
                  Statement stmt = con.createStatement()) {
@@ -106,7 +114,7 @@ public class Install extends HttpServlet {
                 executeDatabaseDDL(stmt, safeDbIdentifier);
             }
 
-            try (Connection con = DriverManager.getConnection(dburl + validatedDbName, dbuser, dbpass);
+            try (Connection con = DriverManager.getConnection(dburl + dbname, dbuser, dbpass);
                  Statement stmt = con.createStatement()) {
 
                 stmt.executeUpdate("CREATE TABLE users(" +
@@ -123,7 +131,7 @@ public class Install extends HttpServlet {
 
                 try (PreparedStatement ps = con.prepareStatement(
                         "INSERT INTO users(username, password, email, About, avatar, privilege, secretquestion, secret) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
 
                     ps.setString(1, adminuser);
                     ps.setString(2, adminpass);
@@ -246,12 +254,11 @@ public class Install extends HttpServlet {
             config.load(in);
         }
 
-        // Only validated/normalized values are persisted
         config.setProperty("dburl", requireValidDbUrl(dburl));
         config.setProperty("jdbcdriver", requireValidJdbcDriver(jdbcdriver));
         config.setProperty("dbuser", requireValidDbUser(dbuser));
         config.setProperty("dbpass", requireValidDbPass(dbpass));
-        config.setProperty("dbname", requireValidDbName(dbname));
+        config.setProperty("dbname", dbname);
         config.setProperty("siteTitle", requireValidSiteTitle(siteTitle));
 
         try (OutputStream out = new FileOutputStream(configPath)) {
@@ -259,20 +266,23 @@ public class Install extends HttpServlet {
         }
     }
 
-    private String safeTrim(String value) {
-        return value == null ? "" : value.trim();
-    }
+    private String resolveAllowedDbName(String value) {
+        String normalized = safeTrim(value).toLowerCase();
+        String resolved = ALLOWED_DATABASES.get(normalized);
 
-    private String requireValidDbName(String value) {
-        String normalized = safeTrim(value);
-        if (!normalized.matches("[A-Za-z0-9_]{1,50}")) {
-            throw new IllegalArgumentException("Invalid database name");
+        if (resolved == null) {
+            throw new IllegalArgumentException("Invalid database selection");
         }
-        return normalized;
+
+        return resolved;
     }
 
     private String quoteMySqlIdentifier(String identifier) {
         return "`" + identifier + "`";
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String requireValidDbUrl(String value) {
