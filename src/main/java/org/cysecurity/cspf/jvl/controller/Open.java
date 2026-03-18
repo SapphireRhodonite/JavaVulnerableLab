@@ -1,91 +1,103 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashSet;
+import java.util.Set;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/**
- *
- * @author breakthesec
- */
 public class Open extends HttpServlet {
 
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
-         try {
-            PrintWriter out = response.getWriter();
-           String url=request.getParameter("url");
-           if(url!=null)
-           {
-              response.sendRedirect(url);
-           }
-           else
-           {
-               out.print("Missing url parameter");
-           }
-        }
-         catch(Exception e)
-         {
-             
-         }
+    private static final Set<String> ALLOWED_EXTERNAL_HOSTS = new HashSet<>();
+
+    static {
+        ALLOWED_EXTERNAL_HOSTS.add("example.com");
+        ALLOWED_EXTERNAL_HOSTS.add("www.example.com");
+        ALLOWED_EXTERNAL_HOSTS.add("docs.oracle.com");
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
-    /**
-     * Handles the HTTP <code>GET</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String url = safeTrim(request.getParameter("url"));
+
+        if (url.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing url parameter");
+            return;
+        }
+
+        if (isAllowedInternalPath(url)) {
+            response.sendRedirect(response.encodeRedirectURL(request.getContextPath() + url));
+            return;
+        }
+
+        if (isAllowedExternalUrl(url)) {
+            response.sendRedirect(response.encodeRedirectURL(url));
+            return;
+        }
+
+        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Redirect target is not allowed");
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private boolean isAllowedInternalPath(String url) {
+        if (!url.startsWith("/")) {
+            return false;
+        }
+
+        if (url.startsWith("//")) {
+            return false;
+        }
+
+        if (url.contains("..") || url.contains("\r") || url.contains("\n")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean isAllowedExternalUrl(String url) {
+        try {
+            URI uri = new URI(url);
+
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+
+            if (scheme == null || host == null) {
+                return false;
+            }
+
+            if (!("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                return false;
+            }
+
+            return ALLOWED_EXTERNAL_HOSTS.contains(host.toLowerCase());
+        } catch (URISyntaxException ex) {
+            return false;
+        }
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Handles the HTTP <code>POST</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Returns a short description of the servlet.
-     *
-     * @return a String containing servlet description
-     */
     @Override
     public String getServletInfo() {
-        return "Short description";
-    }// </editor-fold>
-
+        return "Safe redirect controller";
+    }
 }

@@ -1,9 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.IOException;
@@ -13,103 +7,143 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathFactory;
-
 import org.w3c.dom.Document;
-/**
- *
- * @author breakthesec
- */
+
 public class XPathQuery extends HttpServlet {
 
-
-            
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         response.setContentType("text/html;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        try {
-            String user=request.getParameter("username");
-            String pass=request.getParameter("password");
-            
-            //XML Source:
-            String XML_SOURCE=getServletContext().getRealPath("/WEB-INF/users.xml");
-            
-            //Parsing XML:
-            DocumentBuilderFactory factory=DocumentBuilderFactory.newInstance();
+
+        try (PrintWriter out = response.getWriter()) {
+            String user = safeTrim(request.getParameter("username"));
+            String pass = safeTrim(request.getParameter("password"));
+
+            if (!isValidCredentialInput(user) || !isValidCredentialInput(pass)) {
+                response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=xpathLogin"));
+                return;
+            }
+
+            String xmlSource = getServletContext().getRealPath("/WEB-INF/users.xml");
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
-            DocumentBuilder builder=factory.newDocumentBuilder();
-            Document xDoc=builder.parse(XML_SOURCE);
-            
-            XPath xPath=XPathFactory.newInstance().newXPath();
-            
-            //XPath Query:
-            String xPression="/users/user[username='"+user+"' and password='"+pass+"']/name";
-            
-            //running Xpath query:
-            String name=xPath.compile(xPression).evaluate(xDoc);
-            out.println(name);
-            if(name.isEmpty())
-            {
-                response.sendRedirect(response.encodeURL("ForwardMe?location=/vulnerability/Injection/xpath_login.jsp?err=Invalid Credentials"));
+
+            // Hardening against XXE / unsafe XML parsing
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setXIncludeAware(false);
+            factory.setExpandEntityReferences(false);
+
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document xDoc = builder.parse(xmlSource);
+
+            XPath xPath = XPathFactory.newInstance().newXPath();
+
+            String safeUser = escapeForXPathLiteral(user);
+            String safePass = escapeForXPathLiteral(pass);
+
+            String expression = "/users/user[username=" + safeUser
+                    + " and password=" + safePass + "]/name";
+
+            String name = xPath.compile(expression).evaluate(xDoc);
+
+            if (name == null || name.trim().isEmpty()) {
+                response.sendRedirect(
+                        response.encodeRedirectURL("ForwardMe?location=xpathLogin"));
+                return;
             }
-            else
-            {
-                 HttpSession session=request.getSession();
-                 session.setAttribute("isLoggedIn", "1");
-                  session.setAttribute("user", name);
-                 response.sendRedirect(response.encodeURL("ForwardMe?location=/index.jsp"));                                  
+
+            HttpSession oldSession = request.getSession(false);
+            if (oldSession != null) {
+                oldSession.invalidate();
             }
-        } 
-        catch(Exception e)
-        {
-            out.print(e);
-        }        
-        finally {
-            out.close();
+
+            HttpSession session = request.getSession(true);
+            session.setAttribute("isLoggedIn", "1");
+            session.setAttribute("user", safeDisplayName(name));
+
+            response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=home"));
+
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Authentication failed");
         }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
-    /**
-     * Handles the HTTP <code>GET</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private boolean isValidCredentialInput(String value) {
+        if (value == null) {
+            return false;
+        }
+
+        if (value.length() < 1 || value.length() > 50) {
+            return false;
+        }
+
+        return value.matches("[A-Za-z0-9_@.\\-]+");
+    }
+
+    private String safeDisplayName(String value) {
+        String normalized = safeTrim(value);
+        if (normalized.matches("[A-Za-z0-9 _\\-]{1,50}")) {
+            return normalized;
+        }
+        return "user";
+    }
+
+    private String escapeForXPathLiteral(String value) {
+        if (!value.contains("'")) {
+            return "'" + value + "'";
+        }
+
+        if (!value.contains("\"")) {
+            return "\"" + value + "\"";
+        }
+
+        StringBuilder result = new StringBuilder("concat(");
+        char[] chars = value.toCharArray();
+
+        for (int i = 0; i < chars.length; i++) {
+            if (i > 0) {
+                result.append(",");
+            }
+
+            if (chars[i] == '\'') {
+                result.append("\"'\"");
+            } else {
+                result.append("'").append(chars[i]).append("'");
+            }
+        }
+
+        result.append(")");
+        return result.toString();
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Handles the HTTP <code>POST</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Returns a short description of the servlet.
-     *
-     * @return a String containing servlet description
-     */
     @Override
     public String getServletInfo() {
-        return "Short description";
-    }// </editor-fold>
-
+        return "Safe XPath authentication controller";
+    }
 }
