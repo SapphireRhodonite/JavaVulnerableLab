@@ -1,16 +1,11 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.SQLException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -18,91 +13,87 @@ import javax.servlet.http.HttpServletResponse;
 import org.cysecurity.cspf.jvl.model.DBConnect;
 import org.json.JSONObject;
 
-/**
- *
- * @author breakthesec
- */
 public class EmailCheck extends HttpServlet {
 
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+    private static final String EMAIL_EXISTS_SQL =
+            "SELECT 1 FROM users WHERE email = ?";
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-         response.setContentType("application/json");
-        PrintWriter out = response.getWriter();
-        try {
-               Connection con=new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
-               String email=request.getParameter("email").trim();
-               JSONObject json=new JSONObject();
-                if(con!=null && !con.isClosed())
-                {
-                    ResultSet rs=null;
-                    Statement stmt = con.createStatement();  
-                    rs=stmt.executeQuery("select * from users where email='"+email+"'");
-                    if (rs.next()) 
-                    {  
-                     json.put("available", "1"); 
-                    }  
-                    else
-                    {  
-                      json.put("available", new Integer(0));  
-                    }  
+
+        response.setContentType("application/json;charset=UTF-8");
+
+        JSONObject json = new JSONObject();
+        String email = safeTrim(request.getParameter("email"));
+
+        try (PrintWriter out = response.getWriter()) {
+
+            if (!isValidEmail(email)) {
+                json.put("available", 0);
+                json.put("message", "Invalid email");
+                out.print(json.toString());
+                return;
+            }
+
+            try (Connection con = new DBConnect().connect(
+                    getServletContext().getRealPath("/WEB-INF/config.properties"))) {
+
+                if (con == null || con.isClosed()) {
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    json.put("available", 0);
+                    json.put("message", "Database connection error");
+                    out.print(json.toString());
+                    return;
                 }
-                out.print(json);
-        } 
-        catch(Exception e)
-        {
-            out.print(e);
-        }
-        finally {
-            out.close();
+
+                try (PreparedStatement ps = con.prepareStatement(EMAIL_EXISTS_SQL)) {
+                    ps.setString(1, email);
+
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            json.put("available", 1);
+                        } else {
+                            json.put("available", 0);
+                        }
+                    }
+                }
+            } catch (SQLException ex) {
+                log("EmailCheck database error", ex);
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                json.put("available", 0);
+                json.put("message", "Unable to process request");
+            }
+
+            out.print(json.toString());
         }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
-    /**
-     * Handles the HTTP <code>GET</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private boolean isValidEmail(String value) {
+        if (value.isEmpty() || value.length() > 254) {
+            return false;
+        }
+
+        return value.matches("^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,20}$");
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Handles the HTTP <code>POST</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
-    
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Returns a short description of the servlet.
-     *
-     * @return a String containing servlet description
-     */
     @Override
     public String getServletInfo() {
-        return "Short description";
-    }// </editor-fold>
-
+        return "Safe email availability check controller";
+    }
 }
