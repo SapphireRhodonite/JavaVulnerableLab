@@ -1,4 +1,5 @@
- <%@page import="java.io.FileInputStream"%>
+ <%@page import="org.apache.commons.text.StringEscapeUtils"%>
+<%@page import="java.io.FileInputStream"%>
 <%@page import="java.util.Properties"%>
 <%@page import="java.io.File"%>
 <%
@@ -8,12 +9,14 @@
     Properties properties=new Properties();
     properties.load(new FileInputStream(configPath));
     String siteTitle=properties.getProperty("siteTitle");
+    String safeSiteTitle = StringEscapeUtils.escapeHtml4(siteTitle);
+    String safeUserId = session.getAttribute("userid")!=null ? StringEscapeUtils.escapeHtml4(session.getAttribute("userid").toString()) : "";
      %>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
-	<title><%=siteTitle%></title>
+	<title><%=safeSiteTitle%></title>
 	<link rel="stylesheet" href="<%=path%>/style.css" type="text/css" charset="utf-8" />
            <% out.print("<script src=\""+path+"/jquery.min.js\" type=\"text/javascript\"></script>"); %>
 </head>
@@ -64,27 +67,27 @@
                                         
 			   	       <li><a href="#">A3- XSS</a>
 				             <ul>
-					       <li><a href="#">Reflected(GET)</a>
-					 	 <ul>
+				       <li><a href="#">Reflected(GET)</a>
+				 	 <ul>
 							<li> <a href="<%=path%>/vulnerability/xss/search.jsp">Challenge 1</a></li>
 							<li> <a href="<%=path%>/vulnerability/xss/xss2.jsp">Challenge 2</a></li>
 							<li> <a href="<%=path%>/vulnerability/xss/xss3.jsp">Challenge 3</a></li>
 							<li> <a href="<%=path%>/vulnerability/xss/xss4.jsp">Challenge 4</a></li>
 					       	 </ul>
-					       </li>
+				       </li>
 						
-					       <li><a href="#">Flash Based</a>
-						 <ul>
+				       <li><a href="#">Flash Based</a>
+					 <ul>
 							<li><a href="<%=path%>/vulnerability/xss/flash/xss1.swf?vuln=<%=path%>">Challenge 1</a></li>
-						 	<li><a href="<%=path%>/vulnerability/xss/flash/exss.jsp">Challenge 2</a></li>
-						 </ul>
+					 	<li><a href="<%=path%>/vulnerability/xss/flash/exss.jsp">Challenge 2</a></li>
+					 </ul>
 						<li><a href="<%=path%>/vulnerability/forum.jsp">Stored XSS(Persistent)</a></li>
-				  	    </ul>
+			  	    </ul>
 						
 					</li>
 					<li><a href="#">A4-Insecure Direct Object References</a>
 					<ul>
-                                            <li><a href="<%=path%>/myprofile.jsp?id=<% if(session.getAttribute("userid")!=null){ out.print(session.getAttribute("userid"));} %>" title="Make sure you have logged in ">Viewing Details</a>
+                                            <li><a href="<%=path%>/myprofile.jsp?id=<%=safeUserId%>" title="Make sure you have logged in ">Viewing Details</a>
 						</li>
 						<li><a href="<%=path%>/vulnerability/idor/change-email.jsp" title="Make sure you have logged in ">Modifying email ID</a>
 						</li>
@@ -145,7 +148,7 @@
                                     {
                                        out.print("<li><a href='"+path+"/admin/admin.jsp'>Admin Panel</a></li>"); 
                                     }
-                                    out.print("<li><a href='"+path+"/myprofile.jsp?id="+session.getAttribute("userid")+"'>My Profile</a></li>");
+                                    out.print("<li><a href='"+path+"/myprofile.jsp?id="+safeUserId+"'>My Profile</a></li>");
                                      out.print("<li><a href='"+path+"/Logout'>Logout</a></li>");
                                 }
                                 else
@@ -162,10 +165,9 @@
 	<br/>
 	<div id="logo">
 
-<h1><%=siteTitle%></h1>
+<h1><%=safeSiteTitle%></h1>
 </div>
 <br/>
 	
 		
 		<div id="Main">
-		
