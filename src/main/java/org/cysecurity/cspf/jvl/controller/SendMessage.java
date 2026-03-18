@@ -52,18 +52,18 @@ public class SendMessage extends HttpServlet {
                             pstmt.setString(3, subject);
                             pstmt.setString(4, msg);
                             pstmt.executeUpdate();
-                            response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=<b style='color:green'>* Message successfully sent *</b>");
+                            response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=success");
                                     
                                }
                     else
                     {
-                           response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=<b style='color:red'>* Something Went Wrong</b>");
+                           response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=error");
                            
                     }
                 }
                catch(Exception ex)
                 {
-                       response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=<b style='color:red'>* Something Went Wrong</b><br/>"+ex);
+                       response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=error");
                            
                 }                 
             
