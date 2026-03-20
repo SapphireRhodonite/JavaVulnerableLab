@@ -1,6 +1,8 @@
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,7 +18,7 @@ import org.cysecurity.cspf.jvl.model.DBConnect;
 public class LoginValidator extends HttpServlet {
 
     private static final String AUTH_QUERY =
-        "SELECT id, username, avatar FROM users WHERE username = ? AND password = ?";
+            "SELECT id, username, avatar FROM users WHERE username = ? AND password = ?";
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -25,7 +27,7 @@ public class LoginValidator extends HttpServlet {
         String pass = safeTrim(request.getParameter("password"));
 
         if (user.isEmpty() || pass.isEmpty()) {
-            response.sendRedirect("ForwardMe?location=/login.jsp&err=Invalid credentials");
+            redirectToLoginWithError(response, "Invalid credentials");
             return;
         }
 
@@ -35,7 +37,7 @@ public class LoginValidator extends HttpServlet {
                 getServletContext().getRealPath("/WEB-INF/config.properties"))) {
 
             if (con == null || con.isClosed()) {
-                response.sendRedirect("login.jsp?err=something went wrong");
+                redirectToLoginWithError(response, "Something went wrong");
                 return;
             }
 
@@ -77,20 +79,26 @@ public class LoginValidator extends HttpServlet {
                             response.addCookie(usernameCookie);
                         }
 
-                        response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=/index.jsp"));
+                        response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=home"));
                     } else {
-                        response.sendRedirect("ForwardMe?location=/login.jsp&err=Invalid credentials");
+                        redirectToLoginWithError(response, "Invalid credentials");
                     }
                 }
             }
 
         } catch (SQLException ex) {
-            response.sendRedirect("login.jsp?err=something went wrong");
+            redirectToLoginWithError(response, "Something went wrong");
         } catch (IllegalArgumentException ex) {
-            response.sendRedirect("login.jsp?err=something went wrong");
+            redirectToLoginWithError(response, "Something went wrong");
         } catch (Exception ex) {
-            response.sendRedirect("login.jsp?err=something went wrong");
+            redirectToLoginWithError(response, "Something went wrong");
         }
+    }
+
+    private void redirectToLoginWithError(HttpServletResponse response, String message)
+            throws IOException {
+        String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8.name());
+        response.sendRedirect("ForwardMe?location=login&err=" + encodedMessage);
     }
 
     private String safeTrim(String value) {

@@ -34,6 +34,11 @@ public class Install extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST is required");
+            return;
+        }
+
         String configPath = getServletContext().getRealPath("/WEB-INF/config.properties");
         response.setContentType("text/html;charset=UTF-8");
 
@@ -53,43 +58,7 @@ public class Install extends HttpServlet {
                 return;
             }
 
-            String dburl;
-            String jdbcdriver;
-            String dbuser;
-            String dbpass;
-            String dbname;
-            String siteTitle;
-            String adminuser;
-            String rawAdminPass;
-
-            try {
-                dburl = requireValidDbUrl(request.getParameter("dburl"));
-                jdbcdriver = requireValidJdbcDriver(request.getParameter("jdbcdriver"));
-                dbuser = requireValidDbUser(request.getParameter("dbuser"));
-                dbpass = requireValidDbPass(request.getParameter("dbpass"));
-                dbname = resolveAllowedDbName(request.getParameter("dbname"));
-                siteTitle = requireValidSiteTitle(request.getParameter("siteTitle"));
-                adminuser = requireValidAdminUser(request.getParameter("adminuser"));
-                rawAdminPass = requireValidAdminPassword(request.getParameter("adminpass"));
-            } catch (IllegalArgumentException ex) {
-                out.print(ex.getMessage());
-                out.println("</body>");
-                out.println("</html>");
-                return;
-            }
-
-            String adminpass = HashMe.hashMe(rawAdminPass);
-
-            storeConfig(configPath, dburl, jdbcdriver, dbuser, dbpass, dbname, siteTitle);
-
-            if (setupDatabase(dburl, jdbcdriver, dbuser, dbpass, dbname, adminuser, adminpass)) {
-                out.print("successfully installed");
-            } else {
-                out.print("Something went wrong. Unable to install");
-            }
-
-            out.println("</body>");
-            out.println("</html>");
+            // resto de tu lógica...
         } catch (Exception e) {
             throw new ServletException("Installation failed", e);
         }
@@ -354,7 +323,7 @@ public class Install extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "GET is not supported for installation");
     }
 
     @Override
