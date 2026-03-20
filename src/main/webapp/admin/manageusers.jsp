@@ -67,7 +67,11 @@ try {
 
 <%
     }
+} catch (SQLException ex) {
+    log("Database error in manageusers.jsp", ex);
+    out.print("<b class='error'>A database error occurred</b>");
 } catch (Exception ex) {
+    log("Unexpected error in manageusers.jsp", ex);
     out.print("<b class='error'>Something went wrong</b>");
 } finally {
     try { if (rs != null) rs.close(); } catch (SQLException ignore) {}
