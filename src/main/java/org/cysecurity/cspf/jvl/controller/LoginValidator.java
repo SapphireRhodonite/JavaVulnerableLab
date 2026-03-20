@@ -3,6 +3,8 @@ package org.cysecurity.cspf.jvl.controller;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -22,6 +24,20 @@ public class LoginValidator extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST is required");
+            return;
+        }
+
+        HttpSession csrfSession = request.getSession(false);
+        String sessionToken = csrfSession != null ? (String) csrfSession.getAttribute("csrfToken") : null;
+        String requestToken = request.getParameter("csrfToken");
+
+        if (sessionToken == null || requestToken == null || !sessionToken.equals(requestToken)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF token");
+            return;
+        }
 
         String user = safeTrim(request.getParameter("username"));
         String pass = safeTrim(request.getParameter("password"));
@@ -138,7 +154,7 @@ public class LoginValidator extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "GET is not supported for login");
     }
 
     @Override
