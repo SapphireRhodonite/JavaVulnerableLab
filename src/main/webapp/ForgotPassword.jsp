@@ -26,7 +26,7 @@ Password Recovery:
     <td><input type="text" name="secret" /></td>
 </tr>
 <tr>
-    <td><input type="submit" name="GetPassword" value="GetPassword"/></td>
+    <td><input type="submit" value="Recover"/></td>
 </tr>
 </table>
 </form>
@@ -35,7 +35,7 @@ Password Recovery:
 <%
 boolean isPost = "POST".equalsIgnoreCase(request.getMethod());
 
-if (isPost && request.getParameter("GetPassword") != null) {
+if (isPost) {
     String username = request.getParameter("username");
     String secret = request.getParameter("secret");
 
