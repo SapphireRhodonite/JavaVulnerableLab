@@ -34,36 +34,29 @@ public class EmailCheck extends HttpServlet {
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-         response.setContentType("application/json");
+	protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        
+		response.setContentType("application/json");
         PrintWriter out = response.getWriter();
         try {
-               Connection con=new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
-               String email=request.getParameter("email").trim();
-               JSONObject json=new JSONObject();
-                if(con!=null && !con.isClosed())
-                {
-                    ResultSet rs=null;
-					PreparedStatement stmt = con.prepareStatement("select * from users where email=?");
-					stmt.setString(1, email);
-					rs=stmt.executeQuery();
-                    if (rs.next()) 
-                    {  
-                     json.put("available", "1"); 
-                    }  
-                    else
-                    {  
-                      json.put("available", new Integer(0));  
-                    }  
+			Connection con = new DBConnect().connect(getServletContext().getRealPath("/WEB-INF/config.properties"));
+			String email = request.getParameter("email").trim();
+			JSONObject json = new JSONObject();
+			if (con != null && !con.isClosed()) {
+				ResultSet rs = null;
+				PreparedStatement stmt = con.prepareStatement("select * from users where email=?");
+				stmt.setString(1, email);
+				rs = stmt.executeQuery();
+                if (rs.next()) {
+					json.put("available", "1"); 
+                } else {
+					json.put("available", new Integer(0));  
                 }
-                out.print(json);
-        } 
-        catch(Exception e)
-        {
-            out.print(e);
-        }
-        finally {
+            }
+            out.print(json);
+        } catch(Exception e) {
+			out.print(e);
+        } finally {
             out.close();
         }
     }

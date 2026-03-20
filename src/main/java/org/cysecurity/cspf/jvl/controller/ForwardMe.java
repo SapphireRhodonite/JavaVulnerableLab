@@ -29,21 +29,18 @@ public class ForwardMe extends HttpServlet {
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
+	protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         try {
-           if(request.getParameter("location")!=null)
-            {
-                String location=request.getParameter("location");
+			if(request.getParameter("location") != null) {
+				String location=request.getParameter("location");
                 //Forwarding
                 RequestDispatcher dispatcher = getServletContext().getRequestDispatcher(location);
                 dispatcher.forward(request,response);
-            }
-            else
-            {
-                out.print("Location Parameter is missing");
+            } else {
+				out.print("Location Parameter is missing");
             }
         } finally {
             out.close();

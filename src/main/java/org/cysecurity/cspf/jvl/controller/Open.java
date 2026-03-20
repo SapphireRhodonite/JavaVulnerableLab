@@ -28,25 +28,20 @@ public class Open extends HttpServlet {
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
-         try {
-            PrintWriter out = response.getWriter();
-           String url=request.getParameter("url");
-           if(url!=null)
-           {
-              response.sendRedirect(url);
-           }
-           else
-           {
-               out.print("Missing url parameter");
-           }
-        }
-         catch(Exception e)
-         {
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+		response.setContentType("text/html;charset=UTF-8");
+        try {
+			PrintWriter out = response.getWriter();
+			String url=request.getParameter("url");
+			if (url != null) {
+				response.sendRedirect(url);
+			} else {
+				out.print("Missing url parameter");
+			}
+        } catch(Exception e) {
              
-         }
+		}
     }
 
     // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">

@@ -31,46 +31,34 @@ public class AddPage extends HttpServlet {
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        try {
-           String fileName=request.getParameter("filename");
-           String content=request.getParameter("content");
-           if(fileName!=null && content!=null)
-           {
-            String pagesDir=getServletContext().getRealPath("/pages");
-            String filePath=pagesDir+"/"+fileName;
-            File f=new File(filePath);
-            if(f.exists())
-            {
-                f.delete();
-            }
-                if(f.createNewFile())
-                {
-                    BufferedWriter bw=new BufferedWriter(new FileWriter(f.getAbsoluteFile()));
+	protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		response.setContentType("text/html;charset=UTF-8");
+		PrintWriter out = response.getWriter();
+		try {
+			String fileName = request.getParameter("filename");
+			String content = request.getParameter("content");
+			if (fileName != null && content != null) {
+				String pagesDir = getServletContext().getRealPath("/pages");
+				String filePath = pagesDir+"/" + fileName;
+				File f = new File(filePath);
+				if (f.exists()) {
+					f.delete();
+				}
+                if (f.createNewFile()) {
+                    BufferedWriter bw = new BufferedWriter(new FileWriter(f.getAbsoluteFile()));
                     bw.write(content);
                     bw.close();
                     out.print("Successfully created the file: <a href='../pages/"+fileName+"'>"+fileName+"</a>");
+                } else {
+					out.print("Failed to create the file");
                 }
-                else
-                {
-                    out.print("Failed to create the file");
-                }
-           }
-           else
-           {
-               out.print("filename or content Parameter is missing");
-           }           
-           
-        } 
-        catch(Exception e)
-        {
-            out.print(e);
-        }
-        finally {
-            out.close();
+			} else {
+				out.print("filename or content Parameter is missing");
+			}           
+        } catch(Exception e) {
+			out.print(e);
+        } finally {
+			out.close();
         }
     }
 

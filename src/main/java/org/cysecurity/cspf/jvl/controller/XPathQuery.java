@@ -25,50 +25,42 @@ import org.w3c.dom.Document;
  */
 public class XPathQuery extends HttpServlet {
 
+	protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-            
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
+		response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         try {
-            String user=request.getParameter("username");
-            String pass=request.getParameter("password");
+			String user = request.getParameter("username");
+            String pass = request.getParameter("password");
             
             //XML Source:
-            String XML_SOURCE=getServletContext().getRealPath("/WEB-INF/users.xml");
+            String XML_SOURCE = getServletContext().getRealPath("/WEB-INF/users.xml");
             
             //Parsing XML:
-            DocumentBuilderFactory factory=DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
-            DocumentBuilder builder=factory.newDocumentBuilder();
-            Document xDoc=builder.parse(XML_SOURCE);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document xDoc = builder.parse(XML_SOURCE);
             
-            XPath xPath=XPathFactory.newInstance().newXPath();
+            XPath xPath = XPathFactory.newInstance().newXPath();
             
             //XPath Query:
             String xPression="/users/user[username='"+user+"' and password='"+pass+"']/name";
             
             //running Xpath query:
-            String name=xPath.compile(xPression).evaluate(xDoc);
+            String name = xPath.compile(xPression).evaluate(xDoc);
             out.println(name);
-            if(name.isEmpty())
-            {
-                response.sendRedirect(response.encodeURL("ForwardMe?location=/vulnerability/Injection/xpath_login.jsp?err=Invalid Credentials"));
+            if (name.isEmpty()) {
+				response.sendRedirect(response.encodeURL("ForwardMe?location=/vulnerability/Injection/xpath_login.jsp?err=Invalid Credentials"));
+            } else {
+				HttpSession session=request.getSession();
+				session.setAttribute("isLoggedIn", "1");
+				session.setAttribute("user", name);
+				response.sendRedirect(response.encodeURL("ForwardMe?location=/index.jsp"));                                  
             }
-            else
-            {
-                 HttpSession session=request.getSession();
-                 session.setAttribute("isLoggedIn", "1");
-                  session.setAttribute("user", name);
-                 response.sendRedirect(response.encodeURL("ForwardMe?location=/index.jsp"));                                  
-            }
-        } 
-        catch(Exception e)
-        {
+        } catch(Exception e) {
             out.print(e);
-        }        
-        finally {
+        } finally {
             out.close();
         }
     }

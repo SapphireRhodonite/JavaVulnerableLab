@@ -29,18 +29,17 @@ public class Logout extends HttpServlet {
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        
+		response.setContentType("text/html;charset=UTF-8");
         try {
-            PrintWriter out = response.getWriter();
+			PrintWriter out = response.getWriter();
             /* TODO output your page here. You may use following sample code. */
-          HttpSession session=request.getSession();  
+			HttpSession session=request.getSession();  
             session.invalidate();  
             response.sendRedirect("index.jsp");
         }
-        catch(Exception e)
-        {
+        catch(Exception e) {
             
         }
     }

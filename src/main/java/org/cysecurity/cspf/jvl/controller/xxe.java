@@ -35,32 +35,28 @@ public class xxe extends HttpServlet {
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+		response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
-        try
-        {
-          InputStream xml=request.getInputStream();
-          DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-          DocumentBuilder builder = factory.newDocumentBuilder();
-          InputSource is = new InputSource(xml); 	
-          Document doc = builder.parse(is);
-          Element element = doc.getDocumentElement();
-          NodeList nodes = element.getChildNodes();
-          out.print("<br/>Result:<br/>");
-          out.print("---------------------<br/>");
-          for (int i = 0; i < nodes.getLength(); i++) {
-            out.print(nodes.item(i).getNodeName()+" : " + nodes.item(i).getFirstChild().getNodeValue().toString());
-            out.print("<br/>");
-         }
-        }
-        catch(Exception ex)
-        {
-            out.print(ex);
-        }
-        finally {
-            out.close();
+        try {
+			InputStream xml = request.getInputStream();
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            InputSource is = new InputSource(xml); 	
+            Document doc = builder.parse(is);
+            Element element = doc.getDocumentElement();
+            NodeList nodes = element.getChildNodes();
+            out.print("<br/>Result:<br/>");
+            out.print("---------------------<br/>");
+            for (int i = 0; i < nodes.getLength(); i++) {
+				out.print(nodes.item(i).getNodeName()+" : " + nodes.item(i).getFirstChild().getNodeValue().toString());
+				out.print("<br/>");
+			}
+        } catch(Exception ex) {
+			out.print(ex);
+        } finally {
+			out.close();
         }
     }
 
