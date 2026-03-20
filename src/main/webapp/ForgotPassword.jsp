@@ -33,7 +33,9 @@ Password Recovery:
 <br/>
 
 <%
-if (request.getParameter("secret") != null) {
+boolean isPost = "POST".equalsIgnoreCase(request.getMethod());
+
+if (isPost && request.getParameter("GetPassword") != null) {
     String username = request.getParameter("username");
     String secret = request.getParameter("secret");
 

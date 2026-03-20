@@ -16,7 +16,6 @@
 
         String cleaned = avatar.trim();
 
-        // allowlist simple para nombres de archivo de avatar
         if (cleaned.matches("[A-Za-z0-9._\\-]{1,100}\\.(jpg|jpeg|png|gif)$")) {
             return cleaned;
         }
@@ -27,8 +26,9 @@
 
 <%
 String errorMessage = null;
+boolean isPost = "POST".equalsIgnoreCase(request.getMethod());
 
-if (request.getParameter("Login") != null) {
+if (isPost && request.getParameter("Login") != null) {
     String user = request.getParameter("username");
     String rawPassword = request.getParameter("password");
 
@@ -97,7 +97,7 @@ if (request.getParameter("Login") != null) {
 <%@ include file="/header.jsp" %>
 <b>Admin Login Page:</b><br/>
 <form action="adminlogin.jsp" method="post" autocomplete="off">
-<table> 
+<table>
 <tr><td>UserName: </td><td><input type="text" name="username" /></td></tr>
 <tr><td>Password :</td><td><input type="password" name="password"/></td></tr>
 <tr><td><input type="submit" name="Login" value="Login"/></td></tr>
@@ -105,7 +105,7 @@ if (request.getParameter("Login") != null) {
     <td></td>
     <td class="fail"><%= errorMessage != null ? Encode.forHtml(errorMessage) : "" %></td>
 </tr>
-</table>  
+</table>
 </form>
 
 <%@ include file="/footer.jsp" %>

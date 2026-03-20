@@ -25,6 +25,11 @@ public class Register extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST is required");
+            return;
+        }
+
         response.setContentType("text/html;charset=UTF-8");
 
         String user = safeTrim(request.getParameter("username"));
@@ -153,7 +158,7 @@ public class Register extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "GET is not supported for registration");
     }
 
     @Override
