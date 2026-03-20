@@ -1,9 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.BufferedWriter;
@@ -11,106 +5,112 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
-/**
- *
- * @author breakthesec
- */
 public class AddPage extends HttpServlet {
 
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         response.setContentType("text/html;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        try {
-           String fileName=request.getParameter("filename");
-           String content=request.getParameter("content");
-           if(fileName!=null && content!=null)
-           {
-            String pagesDir=getServletContext().getRealPath("/pages");
-            String filePath=pagesDir+"/"+fileName;
-            File f=new File(filePath);
-            if(f.exists())
-            {
-                f.delete();
+
+        try (PrintWriter out = response.getWriter()) {
+
+            HttpSession session = request.getSession(false);
+            if (session == null || session.getAttribute("isLoggedIn") == null) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
+                return;
             }
-                if(f.createNewFile())
-                {
-                    BufferedWriter bw=new BufferedWriter(new FileWriter(f.getAbsoluteFile()));
-                    bw.write(content);
-                    bw.close();
-                    out.print("Successfully created the file: <a href='../pages/"+fileName+"'>"+fileName+"</a>");
-                }
-                else
-                {
-                    out.print("Failed to create the file");
-                }
-           }
-           else
-           {
-               out.print("filename or content Parameter is missing");
-           }           
-           
-        } 
-        catch(Exception e)
-        {
-            out.print(e);
-        }
-        finally {
-            out.close();
+
+            String privilege = safeTrim((String) session.getAttribute("privilege"));
+            if (!"admin".equals(privilege)) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admin access required");
+                return;
+            }
+
+            String fileName = safeTrim(request.getParameter("filename"));
+            String content = request.getParameter("content");
+
+            if (fileName.isEmpty() || content == null) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "filename or content parameter is missing");
+                return;
+            }
+
+            if (!isValidFileName(fileName)) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid file name");
+                return;
+            }
+
+            String pagesDirPath = getServletContext().getRealPath("/pages");
+            File pagesDir = new File(pagesDirPath);
+            File targetFile = new File(pagesDir, fileName);
+
+            String canonicalPagesDir = pagesDir.getCanonicalPath();
+            String canonicalTargetFile = targetFile.getCanonicalPath();
+
+            if (!canonicalTargetFile.startsWith(canonicalPagesDir + File.separator)) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid file path");
+                return;
+            }
+
+            String safeContent = escapeHtml(content);
+
+            if (targetFile.exists() && !targetFile.delete()) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to replace existing file");
+                return;
+            }
+
+            if (!targetFile.createNewFile()) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create file");
+                return;
+            }
+
+            try (BufferedWriter bw = new BufferedWriter(
+                    new FileWriter(targetFile, StandardCharsets.UTF_8))) {
+                bw.write(safeContent);
+            }
+
+            String safeFileName = escapeHtml(fileName);
+            out.print("Successfully created the file: <a href='../pages/" + safeFileName + "'>" + safeFileName + "</a>");
         }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
-    /**
-     * Handles the HTTP <code>GET</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private boolean isValidFileName(String fileName) {
+        return fileName.matches("[A-Za-z0-9._-]{1,100}\\.(html|txt)$");
+    }
+
+    private String escapeHtml(String input) {
+        if (input == null) return "";
+        return input.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#x27;");
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Handles the HTTP <code>POST</code> method.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    /**
-     * Returns a short description of the servlet.
-     *
-     * @return a String containing servlet description
-     */
     @Override
     public String getServletInfo() {
-        return "Short description";
-    }// </editor-fold>
-
+        return "Safe page creation controller";
+    }
 }
