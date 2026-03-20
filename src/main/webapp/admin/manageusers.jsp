@@ -4,7 +4,17 @@
 <%@ page import="java.sql.ResultSet" %>
 <%@ page import="java.sql.SQLException" %>
 <%@ page import="org.cysecurity.cspf.jvl.model.DBConnect" %>
-<%@ page import="org.apache.commons.text.StringEscapeUtils" %>
+
+<%!
+    private String escapeHtml(String input) {
+        if (input == null) return "";
+        return input.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;")
+                    .replace("'", "&#x27;");
+    }
+%>
 
 <%
 Connection con = null;
@@ -42,7 +52,7 @@ try {
 
         while (rs.next()) {
             String username = rs.getString("username");
-            String safeUsernameHtml = StringEscapeUtils.escapeHtml4(username);
+            String safeUsernameHtml = escapeHtml(username);
 %>
     <input type="radio" name="user" value="<%= safeUsernameHtml %>" />
     <%= safeUsernameHtml %><br/>
