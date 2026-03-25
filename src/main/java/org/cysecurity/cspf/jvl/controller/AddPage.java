@@ -1,12 +1,13 @@
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -14,6 +15,14 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 public class AddPage extends HttpServlet {
+
+    private static final Map<String, String> ALLOWED_PAGE_FILES = new HashMap<>();
+
+    static {
+        ALLOWED_PAGE_FILES.put("help", "help.html");
+        ALLOWED_PAGE_FILES.put("faq", "faq.html");
+        ALLOWED_PAGE_FILES.put("notice", "notice.txt");
+    }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -39,51 +48,55 @@ public class AddPage extends HttpServlet {
                 return;
             }
 
-            String fileName = safeTrim(request.getParameter("filename"));
+            String pageKey = safeTrim(request.getParameter("filename"));
             String content = request.getParameter("content");
 
-            if (fileName.isEmpty() || content == null) {
+            if (pageKey.isEmpty() || content == null) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "filename or content parameter is missing");
                 return;
             }
 
-            if (!isValidFileName(fileName)) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid file name");
+            String allowedFileName = resolveAllowedFileName(pageKey);
+            if (allowedFileName == null) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid page selection");
                 return;
             }
 
-            Path pagesDir = Paths.get(getServletContext().getRealPath("/pages"))
-                    .toAbsolutePath()
-                    .normalize();
+            File pagesDir = new File(getServletContext().getRealPath("/pages"));
+            File targetFile = new File(pagesDir, allowedFileName);
 
-            Path targetPath = pagesDir.resolve(fileName).normalize();
+            String canonicalPagesDir = pagesDir.getCanonicalPath();
+            String canonicalTargetFile = targetFile.getCanonicalPath();
 
-            if (!targetPath.startsWith(pagesDir)) {
+            if (!canonicalTargetFile.startsWith(canonicalPagesDir + File.separator)) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid file path");
                 return;
             }
 
             String safeContent = escapeHtml(content);
 
-            Files.createDirectories(pagesDir);
-
-            try (BufferedWriter writer = Files.newBufferedWriter(
-                    targetPath,
-                    StandardCharsets.UTF_8)) {
-                writer.write(safeContent);
+            if (!pagesDir.exists() && !pagesDir.mkdirs()) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to prepare pages directory");
+                return;
             }
 
-            String safeFileName = escapeHtml(fileName);
+            try (BufferedWriter bw = new BufferedWriter(
+                    new FileWriter(targetFile, StandardCharsets.UTF_8))) {
+                bw.write(safeContent);
+            }
+
+            String safeFileName = escapeHtml(allowedFileName);
             out.print("Successfully created the file: <a href='../pages/" + safeFileName + "'>" + safeFileName + "</a>");
         }
     }
 
-    private String safeTrim(String value) {
-        return value == null ? "" : value.trim();
+    private String resolveAllowedFileName(String pageKey) {
+        String normalized = safeTrim(pageKey).toLowerCase();
+        return ALLOWED_PAGE_FILES.get(normalized);
     }
 
-    private boolean isValidFileName(String fileName) {
-        return fileName.matches("[A-Za-z0-9_-]{1,50}\\.(html|txt)$");
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String escapeHtml(String input) {

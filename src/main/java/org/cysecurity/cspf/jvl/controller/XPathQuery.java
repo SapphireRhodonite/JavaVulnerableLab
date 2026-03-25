@@ -8,13 +8,19 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.xml.XMLConstants;
+import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.XPathVariableResolver;
 import org.w3c.dom.Document;
 
 public class XPathQuery extends HttpServlet {
+
+    private static final String AUTH_XPATH =
+            "/users/user[username=$username and password=$password]/name/text()";
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -26,15 +32,15 @@ public class XPathQuery extends HttpServlet {
 
         response.setContentType("text/html;charset=UTF-8");
 
-        try (PrintWriter out = response.getWriter()) {
-            String user = safeTrim(request.getParameter("username"));
-            String pass = safeTrim(request.getParameter("password"));
+        String user = safeTrim(request.getParameter("username"));
+        String pass = safeTrim(request.getParameter("password"));
 
-            if (!isValidCredentialInput(user) || !isValidCredentialInput(pass)) {
-                response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=xpathLogin"));
-                return;
-            }
+        if (!isValidCredentialInput(user) || !isValidCredentialInput(pass)) {
+            response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=xpathLogin"));
+            return;
+        }
 
+        try {
             String xmlSource = getServletContext().getRealPath("/WEB-INF/users.xml");
 
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -44,6 +50,7 @@ public class XPathQuery extends HttpServlet {
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
             factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             factory.setXIncludeAware(false);
             factory.setExpandEntityReferences(false);
 
@@ -51,18 +58,12 @@ public class XPathQuery extends HttpServlet {
             Document xDoc = builder.parse(xmlSource);
 
             XPath xPath = XPathFactory.newInstance().newXPath();
+            xPath.setXPathVariableResolver(new UserAuthVariableResolver(user, pass));
 
-            String safeUser = escapeForXPathLiteral(user);
-            String safePass = escapeForXPathLiteral(pass);
-
-            String expression = "/users/user[username=" + safeUser
-                    + " and password=" + safePass + "]/name";
-
-            String name = xPath.compile(expression).evaluate(xDoc);
+            String name = (String) xPath.evaluate(AUTH_XPATH, xDoc, XPathConstants.STRING);
 
             if (name == null || name.trim().isEmpty()) {
-                response.sendRedirect(
-                        response.encodeRedirectURL("ForwardMe?location=xpathLogin"));
+                response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=xpathLogin"));
                 return;
             }
 
@@ -77,8 +78,38 @@ public class XPathQuery extends HttpServlet {
 
             response.sendRedirect(response.encodeRedirectURL("ForwardMe?location=home"));
 
-        } catch (Exception e) {
+        } catch (Exception ex) {
+            log("XPath authentication failed", ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Authentication failed");
+        }
+    }
+
+    private static class UserAuthVariableResolver implements XPathVariableResolver {
+        private final String username;
+        private final String password;
+
+        UserAuthVariableResolver(String username, String password) {
+            this.username = username;
+            this.password = password;
+        }
+
+        @Override
+        public Object resolveVariable(QName variableName) {
+            if (variableName == null) {
+                return null;
+            }
+
+            String localPart = variableName.getLocalPart();
+
+            if ("username".equals(localPart)) {
+                return username;
+            }
+
+            if ("password".equals(localPart)) {
+                return password;
+            }
+
+            return null;
         }
     }
 
@@ -104,34 +135,6 @@ public class XPathQuery extends HttpServlet {
             return normalized;
         }
         return "user";
-    }
-
-    private String escapeForXPathLiteral(String value) {
-        if (!value.contains("'")) {
-            return "'" + value + "'";
-        }
-
-        if (!value.contains("\"")) {
-            return "\"" + value + "\"";
-        }
-
-        StringBuilder result = new StringBuilder("concat(");
-        char[] chars = value.toCharArray();
-
-        for (int i = 0; i < chars.length; i++) {
-            if (i > 0) {
-                result.append(",");
-            }
-
-            if (chars[i] == '\'') {
-                result.append("\"'\"");
-            } else {
-                result.append("'").append(chars[i]).append("'");
-            }
-        }
-
-        result.append(")");
-        return result.toString();
     }
 
     @Override
