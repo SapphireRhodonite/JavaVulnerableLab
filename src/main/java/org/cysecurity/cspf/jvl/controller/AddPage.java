@@ -1,11 +1,12 @@
 package org.cysecurity.cspf.jvl.controller;
 
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -16,6 +17,11 @@ public class AddPage extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST is required");
+            return;
+        }
 
         response.setContentType("text/html;charset=UTF-8");
 
@@ -46,33 +52,25 @@ public class AddPage extends HttpServlet {
                 return;
             }
 
-            String pagesDirPath = getServletContext().getRealPath("/pages");
-            File pagesDir = new File(pagesDirPath);
-            File targetFile = new File(pagesDir, fileName);
+            Path pagesDir = Paths.get(getServletContext().getRealPath("/pages"))
+                    .toAbsolutePath()
+                    .normalize();
 
-            String canonicalPagesDir = pagesDir.getCanonicalPath();
-            String canonicalTargetFile = targetFile.getCanonicalPath();
+            Path targetPath = pagesDir.resolve(fileName).normalize();
 
-            if (!canonicalTargetFile.startsWith(canonicalPagesDir + File.separator)) {
+            if (!targetPath.startsWith(pagesDir)) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid file path");
                 return;
             }
 
             String safeContent = escapeHtml(content);
 
-            if (targetFile.exists() && !targetFile.delete()) {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to replace existing file");
-                return;
-            }
+            Files.createDirectories(pagesDir);
 
-            if (!targetFile.createNewFile()) {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create file");
-                return;
-            }
-
-            try (BufferedWriter bw = new BufferedWriter(
-                    new FileWriter(targetFile, StandardCharsets.UTF_8))) {
-                bw.write(safeContent);
+            try (BufferedWriter writer = Files.newBufferedWriter(
+                    targetPath,
+                    StandardCharsets.UTF_8)) {
+                writer.write(safeContent);
             }
 
             String safeFileName = escapeHtml(fileName);
@@ -85,7 +83,7 @@ public class AddPage extends HttpServlet {
     }
 
     private boolean isValidFileName(String fileName) {
-        return fileName.matches("[A-Za-z0-9._-]{1,100}\\.(html|txt)$");
+        return fileName.matches("[A-Za-z0-9_-]{1,50}\\.(html|txt)$");
     }
 
     private String escapeHtml(String input) {
@@ -100,7 +98,7 @@ public class AddPage extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "GET is not supported");
     }
 
     @Override
